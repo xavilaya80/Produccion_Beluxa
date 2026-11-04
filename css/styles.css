@@ -46,6 +46,12 @@ body {
   padding: 10px; display: inline-block; align-self: center;
 }
 .logo-beluxa.chico { font-size: 0.95rem; padding: 6px 10px; letter-spacing: 0.12em; }
+/* Logo corporativo (JPG con fondo blanco: va sobre una placa blanca) */
+.logo-img {
+  display: block; height: 92px; width: auto; align-self: center;
+  background: #fff; border-radius: 10px; padding: 6px 12px;
+}
+.logo-img.chico { height: 44px; padding: 3px 8px; border-radius: 8px; }
 .pin-card h2 { font-size: 1.2rem; }
 .pin-card p { color: var(--texto-suave); font-size: 0.95rem; }
 .pin-card input {
