@@ -1,0 +1,2 @@
+# Backend de Apps Script: contiene IDs internos (Sheet, correos); se pega en Apps Script, no se publica.
+apps-script/

@@ -1,0 +1,247 @@
+/* App Producción Beluxa — estilo AppCalidad (slate oscuro) con barra verde.
+   Pensado para tablet con dedos: objetivos táctiles >= 48px, texto grande. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --panel-2: #0b1220;
+  --borde: #334155;
+  --texto: #e2e8f0;
+  --texto-suave: #94a3b8;
+  --verde: #16a34a;
+  --verde-oscuro: #14532d;
+  --verde-claro: #4ade80;
+  --rojo: #dc2626;
+  --rojo-claro: #f87171;
+  --ambar: #f59e0b;
+  --azul: #38bdf8;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--texto);
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 17px;
+  padding-bottom: 40px;
+}
+
+/* ---------- Pantallas de PIN / carga ---------- */
+.pantalla-pin {
+  position: fixed; inset: 0; z-index: 50;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pin-card {
+  background: var(--panel); border: 1px solid var(--borde); border-radius: 14px;
+  padding: 28px 24px; width: 100%; max-width: 420px; text-align: center;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.logo-beluxa {
+  font-weight: 800; letter-spacing: 0.18em; font-size: 1.5rem;
+  color: #fff; background: var(--verde); border-radius: 8px;
+  padding: 10px; display: inline-block; align-self: center;
+}
+.logo-beluxa.chico { font-size: 0.95rem; padding: 6px 10px; letter-spacing: 0.12em; }
+.pin-card h2 { font-size: 1.2rem; }
+.pin-card p { color: var(--texto-suave); font-size: 0.95rem; }
+.pin-card input {
+  font-size: 1.6rem; text-align: center; letter-spacing: 0.4em;
+  padding: 12px; border-radius: 10px; border: 1px solid var(--borde);
+  background: var(--panel-2); color: var(--texto); width: 100%;
+}
+.error-text { color: var(--rojo-claro); font-size: 0.9rem; min-height: 1.2em; }
+
+.spinner {
+  width: 46px; height: 46px; margin: 0 auto;
+  border: 5px solid var(--borde); border-top-color: var(--verde-claro);
+  border-radius: 50%; animation: girar 0.9s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* ---------- Barra superior y pestañas ---------- */
+.barra {
+  background: var(--verde-oscuro); border-bottom: 3px solid var(--verde);
+  padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 10;
+}
+.barra-titulo { font-weight: 700; font-size: 1.1rem; }
+.barra-hora { margin-left: auto; color: #bbf7d0; font-size: 0.85rem; }
+
+.tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.tab {
+  flex: 1; min-height: 56px; font-size: 1.05rem; font-weight: 600;
+  background: none; border: none; color: var(--texto-suave); cursor: pointer;
+  border-bottom: 4px solid transparent;
+}
+.tab.activa { color: #fff; border-bottom-color: var(--verde); background: rgba(22,163,74,0.08); }
+
+.vista { display: none; padding: 16px 14px; max-width: 900px; margin: 0 auto; }
+.vista.activa { display: block; }
+
+/* ---------- Bloques y grillas ---------- */
+.paso { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.paso h3 { font-size: 1.02rem; margin-bottom: 12px; color: var(--verde-claro); }
+.nota { color: var(--texto-suave); font-size: 0.88rem; margin-bottom: 10px; }
+.etiqueta { display: block; font-size: 0.9rem; color: var(--texto-suave); margin: 10px 0 6px; }
+
+.grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.grilla-maquinas { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.grilla-2 { grid-template-columns: 1fr 1fr; }
+
+.btn-opcion, .btn-cat {
+  min-height: 56px; font-size: 1rem; font-weight: 600;
+  background: var(--panel-2); color: var(--texto);
+  border: 2px solid var(--borde); border-radius: 10px; cursor: pointer;
+}
+.btn-opcion.sel, .btn-cat.sel { background: var(--verde); border-color: var(--verde-claro); color: #fff; }
+
+.btn-estado {
+  min-height: 72px; font-size: 1.15rem; font-weight: 800; border-radius: 12px;
+  border: 3px solid var(--borde); background: var(--panel-2); color: var(--texto); cursor: pointer;
+}
+.btn-estado.operativa.sel { background: var(--verde); border-color: var(--verde-claro); color: #fff; }
+.btn-estado.detenida.sel { background: var(--rojo); border-color: var(--rojo-claro); color: #fff; }
+
+/* ---------- Botones generales ---------- */
+.btn {
+  min-height: 52px; border-radius: 10px; border: none; cursor: pointer;
+  font-size: 1.02rem; font-weight: 700; padding: 0 18px; color: #fff;
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-grande { width: 100%; min-height: 60px; font-size: 1.12rem; margin-top: 14px; }
+.btn-primario { background: var(--verde); }
+.btn-secundario { background: #475569; }
+.btn-peligro { background: var(--rojo); }
+
+.mensaje { min-height: 1.4em; margin-top: 10px; font-size: 0.95rem; text-align: center; }
+.mensaje.ok { color: var(--verde-claro); font-weight: 600; }
+.mensaje.err { color: var(--rojo-claro); font-weight: 600; }
+
+/* ---------- Panel estado máquinas ---------- */
+.panel-estado { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ficha-maquina {
+  border-radius: 10px; padding: 10px; border: 1px solid var(--borde);
+  background: var(--panel-2); font-size: 0.85rem;
+}
+.ficha-maquina .nombre { font-weight: 800; font-size: 0.95rem; }
+.ficha-maquina.op { border-left: 6px solid var(--verde); }
+.ficha-maquina.det { border-left: 6px solid var(--rojo); background: rgba(220,38,38,0.08); }
+.ficha-maquina.sin { border-left: 6px solid var(--borde); color: var(--texto-suave); }
+.ficha-maquina .detalle { color: var(--texto-suave); font-size: 0.78rem; margin-top: 3px; }
+
+/* ---------- Sensores ---------- */
+.foto-preview { margin-top: 12px; text-align: center; }
+.foto-preview img {
+  max-width: 100%; max-height: 360px; border-radius: 10px;
+  border: 2px solid var(--verde); background: var(--panel-2);
+}
+.ficha-maquina a { color: var(--azul); font-size: 0.78rem; }
+
+/* ---------- Inventario ---------- */
+input[type="text"], input[type="number"] {
+  width: 100%; min-height: 52px; font-size: 1.05rem;
+  background: var(--panel-2); color: var(--texto);
+  border: 1px solid var(--borde); border-radius: 10px; padding: 0 14px;
+}
+.banner-conteo {
+  background: var(--verde-oscuro); border: 1px solid var(--verde);
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 0.98rem;
+}
+.lista-insumos { max-height: 300px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.item-insumo {
+  text-align: left; min-height: 54px; padding: 8px 14px;
+  background: var(--panel-2); border: 2px solid var(--borde); border-radius: 10px;
+  color: var(--texto); font-size: 0.98rem; cursor: pointer;
+}
+.item-insumo small { color: var(--texto-suave); display: block; }
+.item-insumo.sel { border-color: var(--verde-claro); background: rgba(22,163,74,0.12); }
+
+.insumo-elegido {
+  margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(56,189,248,0.08); border: 1px solid var(--azul);
+  font-weight: 600;
+}
+.fila-cantidad { display: flex; gap: 10px; align-items: stretch; }
+.fila-cantidad input { text-align: center; font-size: 1.5rem; font-weight: 700; }
+.btn-mas-menos {
+  width: 64px; font-size: 1.8rem; font-weight: 800; border-radius: 10px;
+  border: 2px solid var(--borde); background: var(--panel-2); color: var(--texto); cursor: pointer;
+}
+
+.lista-items { display: flex; flex-direction: column; gap: 8px; }
+.item-conteo {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel-2); border: 1px solid var(--borde);
+  border-radius: 10px; padding: 10px 12px;
+}
+.item-conteo .info { flex: 1; min-width: 0; }
+.item-conteo .info .titulo { font-weight: 600; font-size: 0.95rem; }
+.item-conteo .info .sub { color: var(--texto-suave); font-size: 0.8rem; }
+.item-conteo .cant { font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
+.item-conteo .dup { color: var(--ambar); font-size: 0.78rem; font-weight: 700; }
+.btn-mini {
+  min-width: 48px; min-height: 48px; border-radius: 8px; border: 1px solid var(--borde);
+  background: var(--panel); color: var(--texto); font-size: 1.1rem; cursor: pointer;
+}
+
+.resumen-cierre { background: var(--panel-2); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; font-size: 0.98rem; line-height: 1.7; }
+.resumen-cierre a { color: var(--azul); }
+
+/* ---------- Modales ---------- */
+.modal {
+  display: none; position: fixed; inset: 0; z-index: 60;
+  background: rgba(0,0,0,0.65); align-items: center; justify-content: center; padding: 18px;
+}
+.modal.abierto { display: flex; }
+.modal-card {
+  background: var(--panel); border: 1px solid var(--borde); border-radius: 14px;
+  padding: 20px; width: 100%; max-width: 440px;
+}
+.modal-card h3 { margin-bottom: 8px; color: var(--verde-claro); }
+.confirmar-texto { color: var(--texto); font-size: 0.95rem; line-height: 1.5; white-space: pre-line; }
+
+/* ---------- Panel de planta (panel.html) ---------- */
+body.panel { padding: 0 18px 30px; }
+.panel-head {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 14px 4px; border-bottom: 3px solid var(--verde);
+  position: sticky; top: 0; background: var(--bg); z-index: 5;
+}
+.panel-head h1 { font-size: 1.3rem; }
+.panel-reloj { margin-left: auto; text-align: right; color: var(--texto-suave); font-size: 0.9rem; }
+.panel-reloj b { color: var(--texto); font-size: 1.05rem; }
+.chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+.chip { padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--borde); }
+.chip.op { background: rgba(22,163,74,0.15); color: var(--verde-claro); border-color: var(--verde); }
+.chip.det { background: rgba(220,38,38,0.15); color: var(--rojo-claro); border-color: var(--rojo); }
+.chip.alr { background: rgba(245,158,11,0.18); color: var(--ambar); border-color: var(--ambar); }
+.chip.sin { color: var(--texto-suave); }
+
+.grid-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.maq {
+  background: var(--panel); border: 1px solid var(--borde); border-radius: 14px;
+  padding: 14px 16px; border-left: 10px solid var(--borde);
+  display: flex; flex-direction: column; gap: 6px; min-height: 130px;
+}
+.maq.op { border-left-color: var(--verde); }
+.maq.det { border-left-color: var(--rojo); background: rgba(220,38,38,0.07); }
+.maq.alr { border-left-color: var(--ambar); background: rgba(245,158,11,0.10); }
+.maq .nombre { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.02em; }
+.maq .estado-linea { font-size: 1rem; font-weight: 700; }
+.maq.op .estado-linea { color: var(--verde-claro); }
+.maq.det .estado-linea { color: var(--rojo-claro); }
+.maq .detalle { color: var(--texto-suave); font-size: 0.88rem; line-height: 1.45; }
+.maq .producto { color: var(--texto); font-size: 0.92rem; }
+.maq .tiempo { font-size: 1.05rem; font-weight: 800; color: var(--rojo-claro); }
+.alerta-inicio {
+  margin-top: 4px; background: var(--ambar); color: #1c1403;
+  font-weight: 800; font-size: 0.92rem; border-radius: 8px; padding: 8px 10px;
+  animation: parpadeo 1.6s ease-in-out infinite; text-align: center;
+}
+@keyframes parpadeo { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+.panel-pie { margin-top: 16px; color: var(--texto-suave); font-size: 0.8rem; text-align: center; }
+.panel-aviso { background: var(--panel-2); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 14px; color: var(--ambar); font-size: 0.88rem; margin: 10px 0; display: none; }

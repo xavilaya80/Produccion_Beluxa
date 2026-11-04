@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel Producción Beluxa</title>
+  <meta name="theme-color" content="#14532d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="panel">
+  <header class="panel-head">
+    <span class="logo-beluxa chico" role="img" aria-label="Beluxa">BELUXA</span>
+    <h1>Panel de Producción · Planta</h1>
+    <div class="panel-reloj">
+      <b id="reloj">--:--</b><br>
+      <span id="actualizado">cargando…</span>
+    </div>
+  </header>
+
+  <div class="chips">
+    <span class="chip op">🟢 <span id="n-op">–</span> operativas</span>
+    <span class="chip det">⛔ <span id="n-det">–</span> detenidas</span>
+    <span class="chip alr">⚠ <span id="n-alr">–</span> por confirmar inicio</span>
+    <span class="chip sin"><span id="n-sin">–</span> sin registro</span>
+  </div>
+
+  <div id="aviso-erp" class="panel-aviso"></div>
+
+  <div id="grid" class="grid-panel">
+    <div class="maq"><div class="nombre">Cargando panel…</div></div>
+  </div>
+
+  <p class="panel-pie">
+    Estado: tablet de producción (en línea) · Producto y producción: ERP AVsoft vía Supabase (se carga cada 30 min).
+    El panel se actualiza solo cada 60 segundos.
+  </p>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/panel.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>

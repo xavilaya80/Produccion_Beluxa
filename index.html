@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Producción Beluxa</title>
+  <meta name="theme-color" content="#14532d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- PANTALLA PIN -->
+  <div id="pin-screen" class="pantalla-pin">
+    <div class="pin-card">
+      <div class="logo-beluxa" role="img" aria-label="Beluxa Envases Plásticos">BELUXA</div>
+      <h2>Producción · Planta</h2>
+      <p>Ingresa el PIN de planta para usar la aplicación.</p>
+      <input type="password" id="input-pin" inputmode="numeric" placeholder="PIN" autocomplete="off">
+      <p id="pin-error" class="error-text"></p>
+      <button id="btn-pin" class="btn btn-primario btn-grande">Entrar</button>
+    </div>
+  </div>
+
+  <!-- CARGANDO -->
+  <div id="loading-screen" class="pantalla-pin" style="display:none;">
+    <div class="pin-card">
+      <div class="spinner"></div>
+      <p id="loading-texto">Cargando datos de la planta…</p>
+      <button id="btn-reintentar" class="btn btn-secundario" style="display:none;">↻ Reintentar</button>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" style="display:none;">
+    <header class="barra">
+      <span class="logo-beluxa chico" role="img" aria-label="Beluxa">BELUXA</span>
+      <span class="barra-titulo">Producción</span>
+      <span id="hora-servidor" class="barra-hora"></span>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab activa" data-tab="maquinas">🏭 Máquinas</button>
+      <button class="tab" data-tab="sensores">📷 Sensores</button>
+      <button class="tab" data-tab="inventario">📦 Inventario B35</button>
+    </nav>
+
+    <!-- ============== PESTAÑA MÁQUINAS ============== -->
+    <section id="tab-maquinas" class="vista activa">
+
+      <div class="paso">
+        <h3>1 · Jefe de Turno</h3>
+        <div id="grilla-jefes" class="grilla"></div>
+      </div>
+
+      <div class="paso">
+        <h3>2 · Máquina</h3>
+        <div id="grilla-maquinas" class="grilla grilla-maquinas"></div>
+      </div>
+
+      <div class="paso">
+        <h3>3 · Estado Operativo Actual</h3>
+        <div class="grilla grilla-2">
+          <button class="btn-estado operativa" id="btn-operativa">✅ OPERATIVA</button>
+          <button class="btn-estado detenida" id="btn-detenida">⛔ DETENIDA</button>
+        </div>
+      </div>
+
+      <div class="paso" id="paso-motivo" style="display:none;">
+        <h3>4 · Motivo de la Detención</h3>
+        <div id="grilla-motivos" class="grilla"></div>
+      </div>
+
+      <button id="btn-guardar-maquina" class="btn btn-primario btn-grande" disabled>💾 GUARDAR REGISTRO</button>
+      <p id="msg-maquina" class="mensaje"></p>
+
+      <div class="paso">
+        <h3>Estado actual de las máquinas</h3>
+        <div id="panel-estado" class="panel-estado"></div>
+      </div>
+    </section>
+
+    <!-- ============== PESTAÑA SENSORES ============== -->
+    <section id="tab-sensores" class="vista">
+
+      <div class="paso">
+        <h3>1 · Jefe de Turno</h3>
+        <div id="grilla-jefes-sensor" class="grilla"></div>
+      </div>
+
+      <div class="paso">
+        <h3>2 · Máquina</h3>
+        <div id="grilla-maquinas-sensor" class="grilla grilla-maquinas"></div>
+      </div>
+
+      <div class="paso">
+        <h3>3 · Foto de los sensores</h3>
+        <input type="file" id="input-foto" accept="image/*" capture="environment" style="display:none;">
+        <button id="btn-foto" class="btn btn-secundario btn-grande" style="margin-top:0;">📷 TOMAR FOTO</button>
+        <div id="foto-preview" class="foto-preview" style="display:none;">
+          <img id="foto-img" alt="Foto de los sensores">
+        </div>
+      </div>
+
+      <div class="paso">
+        <h3>4 · Estado de los sensores</h3>
+        <div class="grilla grilla-2">
+          <button class="btn-estado operativa" id="btn-sens-ok">✅ OPERATIVO</button>
+          <button class="btn-estado detenida" id="btn-sens-no">⚠ NO OPERATIVO</button>
+        </div>
+        <label class="etiqueta">Observación (opcional)</label>
+        <input type="text" id="input-obs-sensor" placeholder="Ej: sensor de nivel sucio, cable suelto…" autocomplete="off">
+      </div>
+
+      <button id="btn-guardar-sensor" class="btn btn-primario btn-grande" disabled>💾 GUARDAR REGISTRO DE SENSORES</button>
+      <p id="msg-sensor" class="mensaje"></p>
+
+      <div class="paso">
+        <h3>Sensores del turno actual</h3>
+        <p id="turno-sensores" class="nota"></p>
+        <div id="panel-sensores" class="panel-estado"></div>
+      </div>
+    </section>
+
+    <!-- ============== PESTAÑA INVENTARIO ============== -->
+    <section id="tab-inventario" class="vista">
+
+      <!-- Sin conteo abierto -->
+      <div id="inv-inicio">
+        <div class="paso">
+          <h3>Iniciar conteo · Bodega 35</h3>
+          <p class="nota">Insumos de embalaje y Masterbatch. El conteo queda guardado aunque la tablet se cierre.</p>
+          <label class="etiqueta">Responsable del conteo</label>
+          <div id="grilla-responsables" class="grilla"></div>
+          <button id="btn-iniciar-conteo" class="btn btn-primario btn-grande" disabled>▶ INICIAR CONTEO</button>
+          <p id="msg-inicio-conteo" class="mensaje"></p>
+        </div>
+      </div>
+
+      <!-- Conteo en curso -->
+      <div id="inv-conteo" style="display:none;">
+        <div class="banner-conteo">
+          📦 Conteo en curso · <b id="conteo-responsable"></b> · desde <span id="conteo-inicio"></span>
+        </div>
+
+        <div class="paso">
+          <h3>Registrar ítem</h3>
+          <label class="etiqueta">Categoría</label>
+          <div class="grilla grilla-2">
+            <button class="btn-cat" data-cat="Insumos">Insumos</button>
+            <button class="btn-cat" data-cat="Masterbatch">Masterbatch</button>
+          </div>
+
+          <div id="bloque-insumo" style="display:none;">
+            <label class="etiqueta">Insumo</label>
+            <input type="text" id="buscar-insumo" placeholder="Buscar insumo…" autocomplete="off">
+            <div id="lista-insumos" class="lista-insumos"></div>
+
+            <div id="bloque-cantidad" style="display:none;">
+              <div class="insumo-elegido" id="insumo-elegido"></div>
+              <label class="etiqueta">Cantidad (<span id="unidad-insumo"></span>)</label>
+              <div class="fila-cantidad">
+                <button class="btn-mas-menos" id="btn-menos">−</button>
+                <input type="text" id="input-cantidad" inputmode="decimal" placeholder="Ej: 1.250,50" autocomplete="off">
+                <button class="btn-mas-menos" id="btn-mas">+</button>
+              </div>
+              <label class="etiqueta">Observación (opcional)</label>
+              <input type="text" id="input-obs-item" placeholder="Ej: saco abierto, pallet incompleto…" autocomplete="off">
+              <button id="btn-agregar-item" class="btn btn-primario btn-grande">➕ AGREGAR AL CONTEO</button>
+            </div>
+          </div>
+          <p id="msg-item" class="mensaje"></p>
+        </div>
+
+        <div class="paso">
+          <h3>Ítems del conteo (<span id="n-items">0</span>)</h3>
+          <div id="lista-items" class="lista-items"></div>
+          <button id="btn-cerrar-conteo" class="btn btn-peligro btn-grande">🔒 CERRAR CONTEO Y ENVIAR</button>
+          <p id="msg-cierre" class="mensaje"></p>
+        </div>
+      </div>
+
+      <!-- Resumen post-cierre -->
+      <div id="inv-resumen" style="display:none;">
+        <div class="paso">
+          <h3>✅ Conteo cerrado</h3>
+          <div id="resumen-cierre" class="resumen-cierre"></div>
+          <button id="btn-reenviar-correo" class="btn btn-secundario" style="display:none;">📧 Reenviar correo</button>
+          <button id="btn-nuevo-conteo" class="btn btn-primario btn-grande">Volver a Inventario</button>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <!-- MODAL EDITAR ÍTEM -->
+  <div id="modal-editar" class="modal">
+    <div class="modal-card">
+      <h3 id="editar-titulo">Editar ítem</h3>
+      <label class="etiqueta">Cantidad (<span id="editar-unidad"></span>)</label>
+      <input type="text" id="editar-cantidad" inputmode="decimal" autocomplete="off">
+      <label class="etiqueta">Observación</label>
+      <input type="text" id="editar-obs" autocomplete="off">
+      <div class="grilla grilla-2" style="margin-top:12px;">
+        <button id="editar-cancelar" class="btn btn-secundario">Cancelar</button>
+        <button id="editar-guardar" class="btn btn-primario">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMAR -->
+  <div id="modal-confirmar" class="modal">
+    <div class="modal-card">
+      <h3 id="confirmar-titulo"></h3>
+      <div id="confirmar-texto" class="confirmar-texto"></div>
+      <div class="grilla grilla-2" style="margin-top:12px;">
+        <button id="confirmar-no" class="btn btn-secundario">Cancelar</button>
+        <button id="confirmar-si" class="btn btn-peligro">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () { /* sin SW sigue funcionando */ });
+      });
+    }
+  </script>
+</body>
+</html>
