@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initMaquinas();
   initSensores();
   initInventario();
+  initCola();
 });
 
 function entrarConPin() {
@@ -116,28 +117,48 @@ function entrarConPin() {
   });
 }
 
-function cargarCatalogo() {
+/* ---------- Copia local de los datos (para abrir la app sin internet) ---------- */
+function leerCache() {
+  try { var s = localStorage.getItem('prod_cache'); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+}
+function guardarCache() {
+  try {
+    estado.catalogo.conteoAbierto = estado.conteo;
+    localStorage.setItem('prod_cache', JSON.stringify(estado.catalogo));
+  } catch (e) { /* sin almacenamiento disponible */ }
+}
+function esperar(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function nuevoId() {
+  return (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+    : 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+function p2(n) { return ('0' + n).slice(-2); }
+function fmtCorta(ms) {          // dd-MM-yyyy HH:mm con la hora de la tablet
+  var d = new Date(ms);
+  return p2(d.getDate()) + '-' + p2(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+
+async function cargarCatalogo() {
   $('pin-screen').style.display = 'none';
   $('loading-screen').style.display = 'flex';
   $('btn-reintentar').style.display = 'none';
   $('loading-texto').textContent = 'Cargando datos de la planta…';
 
-  llamar('getCatalogo', [estado.pin], function (data) {
+  var cache = leerCache();
+  // Primero se envía lo pendiente (máx. 12 s de espera) para que el servidor tenga lo último.
+  await Promise.race([sincronizar(), esperar(12000)]);
+  var pend = (await colaListar()).length;
+
+  try {
+    var data = await api('getCatalogo', [estado.pin], cache ? 15000 : 90000);
     if (!data || !data.ok) { errorCarga('Respuesta inesperada del servidor.'); return; }
-    estado.catalogo = data;
-    $('hora-servidor').textContent = data.horaServidor ? data.horaServidor.slice(0, 16) : '';
-    renderJefes();
-    renderMaquinas();
-    renderMotivos();
-    renderResponsables();
-    renderPanelEstado(data.estadoMaquinas);
-    renderMaquinasSensor();
-    renderPanelSensores(data.estadoSensores);
-    refrescarGuardarSensor();
-    aplicarConteoAbierto(data.conteoAbierto);
-    $('loading-screen').style.display = 'none';
-    $('app').style.display = 'block';
-  }, function (err) {
+    if (pend > 0 && cache) {          // hay registros locales que aún no llegaron al servidor: se conservan
+      data.estadoMaquinas = cache.estadoMaquinas || data.estadoMaquinas;
+      data.estadoSensores = cache.estadoSensores || data.estadoSensores;
+      data.conteoAbierto = cache.conteoAbierto;
+    }
+    iniciarApp(data, false);
+  } catch (err) {
     // PIN inválido guardado (lo cambiaron): volver a pedirlo.
     if (String(err.message).indexOf('PIN incorrecto') !== -1) {
       localStorage.removeItem('prod_pin');
@@ -147,8 +168,28 @@ function cargarCatalogo() {
       $('pin-error').textContent = 'El PIN cambió. Ingresa el nuevo.';
       return;
     }
-    errorCarga(err.message);
-  });
+    // Sin internet: se abre con la última copia guardada en la tablet.
+    if (err.sinConexion && cache) { iniciarApp(cache, true); return; }
+    errorCarga(err.message + (err.sinConexion ? ' La primera vez que se usa la app hace falta internet.' : ''));
+  }
+}
+
+function iniciarApp(data, sinConexion) {
+  estado.catalogo = data;
+  $('hora-servidor').textContent = sinConexion ? 'sin conexión' : (data.horaServidor ? data.horaServidor.slice(0, 16) : '');
+  renderJefes();
+  renderMaquinas();
+  renderMotivos();
+  renderResponsables();
+  renderPanelEstado(data.estadoMaquinas || {});
+  renderMaquinasSensor();
+  renderPanelSensores(data.estadoSensores);
+  refrescarGuardarSensor();
+  aplicarConteoAbierto(data.conteoAbierto);
+  guardarCache();
+  $('loading-screen').style.display = 'none';
+  $('app').style.display = 'block';
+  actualizarIndicador();
 }
 
 function errorCarga(msg) {
@@ -255,22 +296,25 @@ function refrescarGuardar() {
   $('btn-guardar-maquina').disabled = !listo;
 }
 
+// El registro se guarda primero en la tablet y se envía en segundo plano (funciona sin internet).
 function guardarMaquina() {
   var btn = $('btn-guardar-maquina');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  llamar('guardarRegistroMaquina', [estado.pin, {
-    jefe: estado.jefe, maquina: estado.maquina, estado: estado.estadoOp, motivo: estado.motivo
-  }], function (r) {
-    btn.textContent = '💾 GUARDAR REGISTRO';
-    if (!r.ok) {
-      btn.disabled = false;
-      setMensaje('msg-maquina', r.mensaje + (r.busy ? ' (servidor ocupado)' : ''), 'err');
-      return;
-    }
-    setMensaje('msg-maquina', '✅ ' + r.mensaje + (r.aviso ? ' · ' + r.aviso : ''), 'ok');
-    // Actualiza el panel con el estado recién guardado, sin otra llamada.
-    estado.catalogo.estadoMaquinas[r.maquina] = r.estadoNuevo;
+  btn.disabled = true;
+  var datos = {
+    id: nuevoId(), ts: Date.now(),
+    jefe: estado.jefe, maquina: estado.maquina, estado: estado.estadoOp,
+    motivo: estado.estadoOp === 'Detenida' ? estado.motivo : ''
+  };
+  encolar('guardarRegistroMaquina', [estado.pin, datos], datos.maquina + ': ' + datos.estado).then(function () {
+    // Actualiza el panel con el estado recién guardado, sin esperar al servidor.
+    var previo = estado.catalogo.estadoMaquinas[datos.maquina];
+    estado.catalogo.estadoMaquinas[datos.maquina] = {
+      estado: datos.estado, motivo: datos.motivo, fechaHora: fmtCorta(datos.ts), jefe: datos.jefe, ts: datos.ts,
+      inicioTs: (previo && previo.estado === datos.estado && previo.inicioTs) ? previo.inicioTs : datos.ts
+    };
+    guardarCache();
     renderPanelEstado(estado.catalogo.estadoMaquinas);
+    setMensaje('msg-maquina', '✅ ' + datos.maquina + ' registrada como ' + datos.estado.toUpperCase() + '.', 'ok');
     // Auto re-open: formulario limpio, conservando el jefe de turno.
     estado.maquina = ''; estado.estadoOp = ''; estado.motivo = '';
     document.querySelectorAll('#grilla-maquinas .btn-opcion, #grilla-motivos .btn-opcion').forEach(function (x) { x.classList.remove('sel'); });
@@ -278,9 +322,6 @@ function guardarMaquina() {
     $('btn-detenida').classList.remove('sel');
     $('paso-motivo').style.display = 'none';
     refrescarGuardar();
-  }, function (err) {
-    btn.disabled = false; btn.textContent = '💾 GUARDAR REGISTRO';
-    setMensaje('msg-maquina', 'No se guardó: ' + err.message, 'err');
   });
 }
 
@@ -454,28 +495,25 @@ function limpiarFormularioSensor() {
   refrescarGuardarSensor();
 }
 
+// El registro (con su foto) se guarda primero en la tablet y se sube en segundo plano (funciona sin internet).
 function guardarSensor() {
   var btn = $('btn-guardar-sensor');
-  btn.disabled = true; btn.textContent = 'Subiendo foto y guardando…';
-  llamar('guardarRegistroSensor', [estado.pin, {
+  btn.disabled = true;
+  var datos = {
+    id: nuevoId(), ts: Date.now(),
     jefe: estado.jefe, maquina: sensor.maquina, estado: sensor.estado,
     observacion: $('input-obs-sensor').value, foto: sensor.foto
-  }], function (r) {
-    btn.textContent = '💾 GUARDAR REGISTRO DE SENSORES';
-    if (!r.ok) {
-      refrescarGuardarSensor();
-      setMensaje('msg-sensor', r.mensaje + (r.busy ? ' (servidor ocupado)' : ''), 'err');
-      return;
-    }
-    setMensaje('msg-sensor', '✅ ' + r.mensaje, 'ok');
+  };
+  encolar('guardarRegistroSensor', [estado.pin, datos], 'Sensores ' + datos.maquina + ': ' + datos.estado + ' (con foto)').then(function () {
     if (!estado.catalogo.estadoSensores) estado.catalogo.estadoSensores = { turno: null, porMaquina: {} };
-    estado.catalogo.estadoSensores.porMaquina[r.maquina] = r.estadoNuevo;
+    estado.catalogo.estadoSensores.porMaquina[datos.maquina] = {
+      estado: datos.estado, fechaHora: fmtCorta(datos.ts), ts: datos.ts, jefe: datos.jefe,
+      observacion: datos.observacion, fotoUrl: '', pendiente: true, idReg: datos.id
+    };
+    guardarCache();
     renderPanelSensores();
+    setMensaje('msg-sensor', '✅ Sensores de ' + datos.maquina + ': ' + datos.estado.toUpperCase() + '.', 'ok');
     limpiarFormularioSensor();
-  }, function (err) {
-    btn.textContent = '💾 GUARDAR REGISTRO DE SENSORES';
-    refrescarGuardarSensor();
-    setMensaje('msg-sensor', 'No se guardó: ' + err.message + ' — la foto sigue aquí, intenta de nuevo.', 'err');
   });
 }
 
@@ -515,7 +553,8 @@ function renderPanelSensores(data) {
       detalle = (ok ? '✅ Operativo' : '⚠ No operativo') +
         (e.observacion ? '<br>' + escapeHTML(e.observacion) : '') +
         '<br>' + escapeHTML(e.fechaHora || '') +
-        (e.fotoUrl ? '<br><a href="' + escapeHTML(e.fotoUrl) + '" target="_blank" rel="noopener">📷 ver foto</a>' : '');
+        (e.fotoUrl ? '<br><a href="' + escapeHTML(e.fotoUrl) + '" target="_blank" rel="noopener">📷 ver foto</a>'
+          : (e.pendiente ? '<br>⏳ foto pendiente de envío' : ''));
     }
     div.className = 'ficha-maquina ' + clase;
     div.innerHTML = '<div class="nombre">' + escapeHTML(m) + '</div><div class="detalle">' + detalle + '</div>';
@@ -599,21 +638,45 @@ function renderResponsables() {
   $('btn-iniciar-conteo').disabled = !estado.responsableSel;
 }
 
-function iniciarConteo() {
+async function iniciarConteo() {
   var resp = estado.responsableSel;
   if (!resp) { setMensaje('msg-inicio-conteo', 'Selecciona el responsable.', 'err'); return; }
   var btn = $('btn-iniciar-conteo');
   btn.disabled = true; btn.textContent = 'Iniciando…';
-  llamar('iniciarConteo', [estado.pin, resp], function (r) {
-    btn.disabled = false; btn.textContent = '▶ INICIAR CONTEO';
-    if (!r.ok) { setMensaje('msg-inicio-conteo', r.mensaje, 'err'); return; }
-    estado.conteo = r.conteo;
-    if (r.existente) setMensaje('msg-item', r.mensaje, 'ok');
-    mostrarConteo();
-  }, function (err) {
-    btn.disabled = false; btn.textContent = '▶ INICIAR CONTEO';
-    setMensaje('msg-inicio-conteo', 'No se pudo iniciar: ' + err.message, 'err');
-  });
+
+  var ts = Date.now();
+  var d = new Date(ts);
+  var id = 'CONTEO-' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds()) +
+    '-' + Math.random().toString(36).slice(2, 5);
+  var opts = { id: id, ts: ts };
+
+  // Si hay conexión y nada pendiente, se consulta al servidor (puede haber un conteo ya abierto).
+  await Promise.race([sincronizar(), esperar(10000)]);
+  var pend = (await colaListar()).length;
+  if (pend === 0) {
+    try {
+      var r = await api('iniciarConteo', [estado.pin, resp, opts], 20000);
+      btn.disabled = false; btn.textContent = '▶ INICIAR CONTEO';
+      if (!r.ok) { setMensaje('msg-inicio-conteo', r.mensaje, 'err'); return; }
+      estado.conteo = r.conteo;
+      if (r.existente) setMensaje('msg-item', r.mensaje, 'ok');
+      guardarCache();
+      mostrarConteo();
+      return;
+    } catch (err) {
+      if (!err.sinConexion) {
+        btn.disabled = false; btn.textContent = '▶ INICIAR CONTEO';
+        setMensaje('msg-inicio-conteo', 'No se pudo iniciar: ' + err.message, 'err');
+        return;
+      }
+    }
+  }
+  // Sin conexión (o con envíos pendientes): el conteo se inicia en la tablet y se registra en el servidor después.
+  estado.conteo = { idConteo: id, responsable: resp, inicio: fmtCorta(ts), items: [] };
+  await encolar('iniciarConteo', [estado.pin, resp, opts], 'Iniciar conteo de ' + resp);
+  btn.disabled = false; btn.textContent = '▶ INICIAR CONTEO';
+  guardarCache();
+  mostrarConteo();
 }
 
 function renderListaInsumos() {
@@ -668,23 +731,27 @@ function agregarItem() {
   var yaExiste = estado.conteo.items.some(function (it) { return it.codigo === estado.insumoSel.codigo; });
   var enviar = function () {
     var btn = $('btn-agregar-item');
-    btn.disabled = true; btn.textContent = 'Agregando…';
-    llamar('agregarItemConteo', [estado.pin, estado.conteo.idConteo, {
-      codigo: estado.insumoSel.codigo, cantidad: cant, observacion: $('input-obs-item').value
-    }], function (r) {
-      btn.disabled = false; btn.textContent = '➕ AGREGAR AL CONTEO';
-      if (!r.ok) { setMensaje('msg-item', r.mensaje + (r.busy ? ' (servidor ocupado, intenta de nuevo)' : ''), 'err'); if (r.conteoCerrado) recargarConteo(); return; }
-      estado.conteo.items = r.items;
+    btn.disabled = true;
+    var ins = estado.insumoSel;
+    var obs = $('input-obs-item').value;
+    var item = {
+      idItem: nuevoId(), codigo: ins.codigo, insumo: ins.insumo, categoria: ins.categoria,
+      cantidad: cant, unidad: ins.unidad, observacion: String(obs || '').trim()
+    };
+    var conteoId = estado.conteo.idConteo;
+    // El ítem se guarda primero en la tablet y se envía en segundo plano (funciona sin internet).
+    encolar('agregarItemConteo', [estado.pin, conteoId, { idItem: item.idItem, codigo: item.codigo, cantidad: cant, observacion: item.observacion, ts: Date.now() }],
+      'Ítem ' + ins.insumo + ': ' + formatoCL(cant) + ' ' + ins.unidad).then(function () {
+      btn.disabled = false;
+      if (estado.conteo && estado.conteo.idConteo === conteoId) estado.conteo.items.push(item);
+      guardarCache();
       renderItems();
-      setMensaje('msg-item', '✅ ' + estado.insumoSel.insumo + ': ' + formatoCL(cant) + ' ' + estado.insumoSel.unidad + ' agregado.', 'ok');
+      setMensaje('msg-item', '✅ ' + ins.insumo + ': ' + formatoCL(cant) + ' ' + ins.unidad + ' agregado.', 'ok');
       // Listo para el siguiente ítem de la misma categoría.
       estado.insumoSel = null;
       $('bloque-cantidad').style.display = 'none';
       $('buscar-insumo').value = '';
       renderListaInsumos();
-    }, function (err) {
-      btn.disabled = false; btn.textContent = '➕ AGREGAR AL CONTEO';
-      setMensaje('msg-item', 'No se agregó: ' + err.message, 'err');
     });
   };
 
@@ -728,9 +795,12 @@ function renderItems() {
     bDel.className = 'btn-mini'; bDel.textContent = '🗑️';
     bDel.addEventListener('click', function () {
       confirmar('Eliminar ítem', '¿Eliminar "' + it.insumo + '" (' + formatoCL(it.cantidad) + ' ' + it.unidad + ') del conteo?', function () {
-        llamar('eliminarItemConteo', [estado.pin, estado.conteo.idConteo, it.idItem], function (r) {
-          if (!r.ok) { setMensaje('msg-item', r.mensaje, 'err'); if (r.conteoCerrado) recargarConteo(); return; }
-          estado.conteo.items = r.items;
+        var conteoId = estado.conteo.idConteo;
+        encolar('eliminarItemConteo', [estado.pin, conteoId, it.idItem], 'Eliminar ítem ' + it.insumo).then(function () {
+          if (estado.conteo && estado.conteo.idConteo === conteoId) {
+            estado.conteo.items = estado.conteo.items.filter(function (x) { return x.idItem !== it.idItem; });
+          }
+          guardarCache();
           renderItems();
         });
       });
@@ -758,15 +828,16 @@ function guardarEdicionItem() {
   if (isNaN(cant) || cant < 0) return;
   var btn = $('editar-guardar');
   btn.disabled = true;
-  llamar('actualizarItemConteo', [estado.pin, estado.conteo.idConteo, itemEditando.idItem, cant, $('editar-obs').value], function (r) {
+  var it = itemEditando;
+  var obs = String($('editar-obs').value || '').trim();
+  var conteoId = estado.conteo.idConteo;
+  encolar('actualizarItemConteo', [estado.pin, conteoId, it.idItem, cant, obs], 'Corregir ítem ' + it.insumo + ': ' + formatoCL(cant) + ' ' + it.unidad).then(function () {
     btn.disabled = false;
     $('modal-editar').classList.remove('abierto');
-    if (!r.ok) { setMensaje('msg-item', r.mensaje, 'err'); if (r.conteoCerrado) recargarConteo(); return; }
-    estado.conteo.items = r.items;
+    it.cantidad = cant;
+    it.observacion = obs;
+    guardarCache();
     renderItems();
-  }, function (err) {
-    btn.disabled = false;
-    setMensaje('msg-item', 'No se guardó el cambio: ' + err.message, 'err');
   });
 }
 
@@ -775,32 +846,106 @@ function pedirCierreConteo() {
   var resumen = 'Responsable: ' + estado.conteo.responsable +
     '\nÍtems registrados: ' + items.length +
     (items.length === 0 ? '\n\n⚠ El conteo está VACÍO.' : '') +
-    '\n\nAl cerrar: se genera el PDF de respaldo y se envía el correo a las áreas configuradas. Después no se puede seguir agregando ítems.';
+    '\n\nAl cerrar: se genera el PDF de respaldo y se envía el correo a las áreas configuradas (si no hay internet, se hace solo cuando vuelva la conexión). Después no se puede seguir agregando ítems.';
   confirmar('Cerrar conteo Bodega 35', resumen, cerrarConteo);
 }
 
 function cerrarConteo() {
+  var cab = estado.conteo;
+  if (!cab) return;
   var btn = $('btn-cerrar-conteo');
-  btn.disabled = true; btn.textContent = 'Cerrando y enviando…';
-  llamar('cerrarConteo', [estado.pin, estado.conteo.idConteo], function (r) {
-    btn.disabled = false; btn.textContent = '🔒 CERRAR CONTEO Y ENVIAR';
-    if (!r.ok) { setMensaje('msg-cierre', r.mensaje + (r.busy ? ' (servidor ocupado, intenta de nuevo)' : ''), 'err'); return; }
-    estado.ultimoCierre = { idConteo: estado.conteo.idConteo };
+  btn.disabled = true;
+  encolar('cerrarConteo', [estado.pin, cab.idConteo], 'Cerrar conteo de ' + cab.responsable + ' (' + cab.items.length + ' ítems)').then(function () {
+    btn.disabled = false;
+    estado.ultimoCierre = { idConteo: cab.idConteo, responsable: cab.responsable, totalItems: cab.items.length };
     estado.conteo = null;
+    guardarCache();
     $('inv-conteo').style.display = 'none';
     $('inv-resumen').style.display = 'block';
-    var html = '<b>Total ítems:</b> ' + r.totalItems +
+    mostrarResumenCierre(null);     // se completa con el PDF y el correo cuando el servidor responda
+  });
+}
+
+// r = respuesta del servidor al cerrar; null mientras el cierre aún está en la cola.
+function mostrarResumenCierre(r) {
+  var u = estado.ultimoCierre || {};
+  var html;
+  if (!r) {
+    html = '<b>Conteo cerrado</b> con ' + (u.totalItems || 0) + ' ítems.<br>' +
+      '⏳ El PDF de respaldo y el correo se generan y envían solos cuando haya conexión con el servidor.';
+    $('btn-reenviar-correo').style.display = 'none';
+  } else if (r.yaCerrado) {
+    html = '<b>Conteo cerrado</b> con ' + (u.totalItems || 0) + ' ítems.';
+    $('btn-reenviar-correo').style.display = 'none';
+  } else {
+    html = '<b>Total ítems:</b> ' + r.totalItems +
       (r.bajoMinimo ? '<br><b style="color:#f87171">' + r.bajoMinimo + ' ítem(s) bajo stock mínimo</b>' : '') +
       '<br><b>PDF:</b> <a href="' + escapeHTML(r.pdfUrl) + '" target="_blank" rel="noopener">abrir respaldo en Drive</a>' +
       '<br><b>Correo:</b> ' + (r.correoEnviado
-        ? '✅ enviado a ' + escapeHTML(r.destinatarios.join(', '))
+        ? '✅ enviado a ' + escapeHTML((r.destinatarios || []).join(', '))
         : '❌ ' + escapeHTML(r.mensajeCorreo || 'no se envió'));
-    $('resumen-cierre').innerHTML = html;
     $('btn-reenviar-correo').style.display = r.correoEnviado ? 'none' : 'inline-block';
-  }, function (err) {
-    btn.disabled = false; btn.textContent = '🔒 CERRAR CONTEO Y ENVIAR';
-    setMensaje('msg-cierre', 'No se pudo cerrar: ' + err.message + ' — el conteo sigue abierto, intenta de nuevo.', 'err');
-  });
+  }
+  $('resumen-cierre').innerHTML = html;
+}
+
+/* ====================================================================
+ * RESULTADOS DE LA COLA (se llama cuando el servidor responde a un envío)
+ * ==================================================================== */
+
+// Si otra tablet ya había abierto un conteo, los ítems de este pasan a ese conteo.
+async function remapearConteo(viejo, nuevo) {
+  var ops = await colaListar();
+  for (var i = 0; i < ops.length; i++) {
+    var o = ops[i];
+    if (o.fn !== 'iniciarConteo' && o.args && o.args[1] === viejo) {
+      o.args[1] = nuevo;
+      await colaActualizar(o);
+    }
+  }
+}
+
+async function alResultadoCola(op, r) {
+  var fn = op.fn;
+  var msg = (r && r.mensaje) || '';
+
+  if (r && r.ok === false) {
+    var silencioso =
+      (/No se encontró el ítem/.test(msg) && (fn === 'eliminarItemConteo' || fn === 'actualizarItemConteo')) ||
+      (fn === 'cerrarConteo' && /ya no está abierto/.test(msg));
+    if (fn === 'cerrarConteo' && silencioso && estado.ultimoCierre && estado.ultimoCierre.idConteo === op.args[1]) {
+      mostrarResumenCierre({ yaCerrado: true });
+    }
+    if (!silencioso) agregarRechazo(op.desc, msg || 'El servidor no aceptó el registro.');
+    if (r.conteoCerrado) recargarConteo();
+    return;
+  }
+
+  if (fn === 'guardarRegistroSensor' && r.estadoNuevo && estado.catalogo && estado.catalogo.estadoSensores) {
+    var actual = estado.catalogo.estadoSensores.porMaquina[r.maquina];
+    if (actual && actual.idReg === op.args[1].id) {        // todavía es el último: completar con el enlace de la foto
+      estado.catalogo.estadoSensores.porMaquina[r.maquina] = r.estadoNuevo;
+      guardarCache();
+      renderPanelSensores();
+    }
+  } else if (fn === 'iniciarConteo') {
+    var mio = op.args[2] && op.args[2].id;
+    if (r.existente && r.conteo && r.conteo.idConteo !== mio) {
+      await remapearConteo(mio, r.conteo.idConteo);
+      if (estado.conteo && estado.conteo.idConteo === mio) {
+        var locales = estado.conteo.items.filter(function (li) {
+          return !r.conteo.items.some(function (si) { return si.idItem === li.idItem; });
+        });
+        estado.conteo.idConteo = r.conteo.idConteo;
+        estado.conteo.items = r.conteo.items.concat(locales);
+        guardarCache();
+        mostrarConteo();
+        setMensaje('msg-item', 'Ya había un conteo abierto de ' + r.conteo.responsable + ': tus ítems se agregaron a ese conteo.', 'ok');
+      }
+    }
+  } else if (fn === 'cerrarConteo') {
+    if (estado.ultimoCierre && estado.ultimoCierre.idConteo === op.args[1]) mostrarResumenCierre(r);
+  }
 }
 
 function reenviarCorreo() {
@@ -825,6 +970,7 @@ function recargarConteo() {
       aplicarConteoAbierto(data.conteoAbierto);
       renderPanelEstado(data.estadoMaquinas);
       renderPanelSensores(data.estadoSensores);
+      guardarCache();
     }
   });
 }

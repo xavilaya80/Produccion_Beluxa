@@ -41,6 +41,7 @@
       <img class="logo-img chico" src="icons/logo.jpg" alt="Beluxa">
       <span class="barra-titulo">Producción</span>
       <span id="hora-servidor" class="barra-hora"></span>
+      <button id="chip-sync" class="chip-sync" style="display:none;" aria-label="Ver envíos pendientes"></button>
     </header>
 
     <nav class="tabs">
@@ -197,6 +198,20 @@
     </section>
   </div>
 
+  <!-- MODAL ENVÍOS PENDIENTES (cola sin conexión) -->
+  <div id="modal-sync" class="modal">
+    <div class="modal-card modal-sync">
+      <h3>Envíos pendientes</h3>
+      <p class="nota">Lo que se hace sin internet queda guardado en la tablet y se envía solo cuando vuelve la conexión.</p>
+      <div id="sync-lista"></div>
+      <div class="grilla grilla-2" style="margin-top:12px;">
+        <button id="sync-reintentar" class="btn btn-primario">Enviar ahora</button>
+        <button id="sync-cerrar" class="btn btn-secundario">Cerrar</button>
+      </div>
+      <button id="sync-limpiar" class="btn btn-secundario" style="display:none;width:100%;margin-top:10px;min-height:44px;font-size:0.9rem;">Entendido, quitar avisos</button>
+    </div>
+  </div>
+
   <!-- MODAL CÁMARA (sensores) -->
   <div id="modal-camara" class="modal">
     <div class="modal-card modal-camara">
@@ -239,6 +254,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/cola.js"></script>
   <script src="js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

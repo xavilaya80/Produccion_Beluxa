@@ -3,11 +3,11 @@
    cuando hay conexión siempre se obtiene la versión nueva; sin conexión
    se usa la última copia guardada. Las llamadas a Apps Script NO se
    interceptan (son de otro origen y siempre van a la red). */
-var CACHE = 'produccion-beluxa-v7';
+var CACHE = 'produccion-beluxa-v8';
 var SHELL = [
   './', './index.html', './panel.html',
   './css/styles.css',
-  './js/config.js', './js/api.js', './js/app.js', './js/panel.js',
+  './js/config.js', './js/api.js', './js/cola.js', './js/app.js', './js/panel.js',
   './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/logo.jpg'
 ];
@@ -26,18 +26,29 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+// Red primero, pero si la red tarda más de 4 s (WiFi sin internet) se usa la copia guardada,
+// así la app abre rápido aunque no haya conexión real.
+function redConLimite(req, ms) {
+  return new Promise(function (resolve, reject) {
+    var t = setTimeout(function () { reject(new Error('timeout')); }, ms);
+    fetch(req).then(function (res) { clearTimeout(t); resolve(res); }, function (err) { clearTimeout(t); reject(err); });
+  });
+}
+
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   if (new URL(req.url).origin !== self.location.origin) return;   // API de Apps Script: directo a la red
 
   e.respondWith(
-    fetch(req).then(function (res) {
-      var copia = res.clone();
-      caches.open(CACHE).then(function (c) { c.put(req, copia); });
+    redConLimite(req, 4000).then(function (res) {
+      if (res && res.ok) {
+        var copia = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copia); });
+      }
       return res;
     }).catch(function () {
-      return caches.match(req).then(function (hit) { return hit || caches.match('./index.html'); });
+      return caches.match(req, { ignoreSearch: true }).then(function (hit) { return hit || caches.match('./index.html'); });
     })
   );
 });
