@@ -146,6 +146,10 @@ body {
   border: 2px solid var(--verde); background: var(--panel-2);
 }
 .ficha-maquina a { color: var(--azul); font-size: 0.78rem; }
+.modal-camara { max-width: 640px; }
+#camara-video {
+  width: 100%; max-height: 60vh; background: #000; border-radius: 10px; margin-top: 8px; object-fit: contain;
+}
 
 /* ---------- Inventario ---------- */
 input[type="text"], input[type="number"] {

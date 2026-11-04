@@ -309,17 +309,16 @@ function renderPanelEstado(mapa) {
 var sensor = { maquina: '', estado: '', foto: '' };   // foto = base64 JPEG (sin prefijo)
 
 function initSensores() {
-  $('btn-foto').addEventListener('click', function () { $('input-foto').click(); });
+  $('btn-foto').addEventListener('click', abrirCamara);
+  $('camara-capturar').addEventListener('click', capturarDesdeCamara);
+  $('camara-cancelar').addEventListener('click', cerrarCamara);
+  $('camara-archivo').addEventListener('click', function () { cerrarCamara(); $('input-foto').click(); });
   $('input-foto').addEventListener('change', function () {
     var f = this.files && this.files[0];
     if (!f) return;
     $('btn-foto').disabled = true;
     comprimirFoto(f).then(function (dataUrl) {
-      sensor.foto = dataUrl.split(',')[1];
-      $('foto-img').src = dataUrl;
-      $('foto-preview').style.display = 'block';
-      $('btn-foto').textContent = '🔄 VOLVER A TOMAR FOTO';
-      refrescarGuardarSensor();
+      aplicarFoto(dataUrl);
     }, function (err) {
       setMensaje('msg-sensor', err.message, 'err');
     }).then(function () {
@@ -332,6 +331,65 @@ function initSensores() {
   $('btn-guardar-sensor').addEventListener('click', guardarSensor);
   // Revisa cada minuto si terminó el turno para vaciar el panel de fotos/estados.
   setInterval(function () { if (estado.catalogo) renderPanelSensores(); }, 60000);
+}
+
+function aplicarFoto(dataUrl) {
+  sensor.foto = dataUrl.split(',')[1];
+  $('foto-img').src = dataUrl;
+  $('foto-preview').style.display = 'block';
+  $('btn-foto').textContent = '🔄 VOLVER A TOMAR FOTO';
+  setMensaje('msg-sensor', '', '');
+  refrescarGuardarSensor();
+}
+
+/* ---------- Cámara en vivo (getUserMedia): abre la cámara también en PC/web ----------
+   Si el navegador no tiene cámara o el permiso se niega, se ofrece elegir un archivo. */
+var camaraStream = null;
+
+function abrirCamara() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('input-foto').click();      // navegador sin soporte: selector/cámara nativa
+    return;
+  }
+  setMensaje('msg-sensor', '', '');
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false
+  }).then(function (stream) {
+    camaraStream = stream;
+    var v = $('camara-video');
+    v.srcObject = stream;
+    v.play();
+    $('modal-camara').classList.add('abierto');
+  }, function (err) {
+    var motivo = (err && err.name === 'NotAllowedError')
+      ? 'Permiso de cámara denegado. Permítelo en el navegador (candado junto a la dirección) o elige un archivo.'
+      : 'No se pudo abrir la cámara (' + (err && err.name ? err.name : 'error') + '). Puedes elegir un archivo.';
+    setMensaje('msg-sensor', motivo, 'err');
+    $('input-foto').click();
+  });
+}
+
+function cerrarCamara() {
+  if (camaraStream) {
+    camaraStream.getTracks().forEach(function (t) { t.stop(); });
+    camaraStream = null;
+  }
+  $('camara-video').srcObject = null;
+  $('modal-camara').classList.remove('abierto');
+}
+
+function capturarDesdeCamara() {
+  var v = $('camara-video');
+  if (!v.videoWidth) { setMensaje('msg-sensor', 'La cámara aún no está lista. Espera un segundo.', 'err'); return; }
+  var k = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+  var c = document.createElement('canvas');
+  c.width = Math.round(v.videoWidth * k);
+  c.height = Math.round(v.videoHeight * k);
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  var dataUrl = c.toDataURL('image/jpeg', 0.7);
+  cerrarCamara();
+  aplicarFoto(dataUrl);
 }
 
 // Reduce la foto (lado mayor 1280 px, JPEG 70%) para que suba rápido aunque haya poca señal.
