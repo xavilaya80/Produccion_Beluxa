@@ -1,3 +1,2 @@
 // URL de la implementación "Aplicación web" de Apps Script (termina en /exec).
-// Pégala aquí después de desplegar Api.gs (ver README.md).
-var API_URL = "PEGA_AQUI_LA_URL_DE_APPS_SCRIPT/exec";
+var API_URL = "https://script.google.com/macros/s/AKfycbyUvN3jyKP2QL387pdyp2UUB5mbX70IWAbvlAFZoVTGmfkjbveOx0UFXVIfMIUL7SZ5RA/exec";
