@@ -3,13 +3,13 @@
    cuando hay conexión siempre se obtiene la versión nueva; sin conexión
    se usa la última copia guardada. Las llamadas a Apps Script NO se
    interceptan (son de otro origen y siempre van a la red). */
-var CACHE = 'produccion-beluxa-v6';
+var CACHE = 'produccion-beluxa-v7';
 var SHELL = [
   './', './index.html', './panel.html',
   './css/styles.css',
   './js/config.js', './js/api.js', './js/app.js', './js/panel.js',
   './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/logo.jpg'
+  './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/logo.jpg'
 ];
 
 self.addEventListener('install', function (e) {
