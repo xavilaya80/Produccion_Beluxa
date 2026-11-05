@@ -143,14 +143,20 @@ async function actualizarIndicador() {
   var fallidas = ops.filter(function (o) { return o.fallida; }).length;
   var rech = leerRechazos().length;
   var sinRed = (navigator.onLine === false) || (RED.ok === false);
-  var txt = '', clase = '';
+  var txt = '', clase = '', estadoChip = '';
+  // Con internet, un envío recién hecho tarda unos segundos en confirmarse: eso es normal y no se muestra
+  // como "pendiente". Si pasan más de 15 s sin confirmarse, sí se avisa.
+  var masAntigua = pend ? Math.min.apply(null, ops.map(function (o) { return o.ts; })) : 0;
+  var enCurso = pend > 0 && !sinRed && (Date.now() - masAntigua) < 15000;
   if (fallidas + rech > 0) { txt = '⚠ ' + (fallidas + rech) + ' con problemas'; clase = 'err'; }
+  else if (enCurso) { txt = '⏳ Enviando…'; clase = 'info'; estadoChip = 'enviando'; }
   else if (pend > 0) { txt = (sinRed ? '📡 Sin conexión · ' : '⏳ ') + pend + (pend === 1 ? ' pendiente' : ' pendientes'); clase = sinRed ? 'warn' : 'info'; }
   else if (sinRed) { txt = '📡 Sin conexión'; clase = 'warn'; }
   else if (SYNC.recienEnviado) { txt = '✅ Todo enviado'; clase = 'ok'; }
   chip.style.display = txt ? 'inline-block' : 'none';
   chip.textContent = txt;
   chip.className = 'chip-sync ' + clase;
+  chip.dataset.estado = estadoChip;
 }
 
 /* ---------- Pantalla de pendientes ---------- */
@@ -188,7 +194,8 @@ async function abrirModalSync() {
 
 function initCola() {
   var chip = document.getElementById('chip-sync');
-  if (chip) chip.addEventListener('click', abrirModalSync);
+  // Mientras solo está enviando (con internet) no hay nada que revisar: el aviso no abre la lista.
+  if (chip) chip.addEventListener('click', function () { if (chip.dataset.estado === 'enviando') return; abrirModalSync(); });
   document.getElementById('sync-cerrar').addEventListener('click', function () { document.getElementById('modal-sync').classList.remove('abierto'); });
   document.getElementById('sync-reintentar').addEventListener('click', async function () {
     var ops = await colaListar();
@@ -220,5 +227,7 @@ function initCola() {
       if (ops.some(function (o) { return !o.fallida; }) && !SYNC.promesa) sincronizar();
     });
   }, 30000);
+  // Refresca el aviso cada pocos segundos (para pasar de "Enviando…" a "N pendientes" si algo no se confirma).
+  setInterval(function () { if (!document.hidden) actualizarIndicador(); }, 4000);
   actualizarIndicador();
 }

@@ -3,7 +3,7 @@
    cuando hay conexión siempre se obtiene la versión nueva; sin conexión
    se usa la última copia guardada. Las llamadas a Apps Script NO se
    interceptan (son de otro origen y siempre van a la red). */
-var CACHE = 'produccion-beluxa-v11';
+var CACHE = 'produccion-beluxa-v12';
 var SHELL = [
   './', './index.html', './panel.html',
   './css/styles.css',
