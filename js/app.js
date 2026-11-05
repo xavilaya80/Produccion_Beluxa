@@ -596,6 +596,9 @@ function initInventario() {
 
   $('editar-cancelar').addEventListener('click', function () { $('modal-editar').classList.remove('abierto'); });
   $('editar-guardar').addEventListener('click', guardarEdicionItem);
+  $('btn-opciones-conteo').addEventListener('click', abrirOpcionesConteo);
+  $('opc-cerrar').addEventListener('click', cerrarOpcionesConteo);
+  $('opc-descartar').addEventListener('click', descartarConteo);
 }
 
 function aplicarConteoAbierto(conteo) {
@@ -841,6 +844,63 @@ function guardarEdicionItem() {
   });
 }
 
+/* ---------- Corregir el conteo en curso: cambiar el responsable o descartarlo ---------- */
+function abrirOpcionesConteo() {
+  if (!estado.conteo) return;
+  $('opc-actual').textContent = estado.conteo.responsable;
+  var g = $('opc-grilla');
+  g.innerHTML = '';
+  estado.catalogo.jefes.forEach(function (j) {
+    var b = document.createElement('button');
+    b.className = 'btn-opcion' + (j === estado.conteo.responsable ? ' sel' : '');
+    b.textContent = j;
+    b.addEventListener('click', function () { cambiarResponsable(j); });
+    g.appendChild(b);
+  });
+  $('modal-opciones-conteo').classList.add('abierto');
+}
+
+function cerrarOpcionesConteo() { $('modal-opciones-conteo').classList.remove('abierto'); }
+
+function cambiarResponsable(nuevo) {
+  var c = estado.conteo;
+  if (!c) return;
+  if (nuevo === c.responsable) { cerrarOpcionesConteo(); return; }
+  var id = c.idConteo;
+  encolar('cambiarResponsableConteo', [estado.pin, id, nuevo], 'Cambiar responsable del conteo a ' + nuevo).then(function () {
+    if (estado.conteo && estado.conteo.idConteo === id) {
+      estado.conteo.responsable = nuevo;
+      $('conteo-responsable').textContent = nuevo;
+    }
+    guardarCache();
+    cerrarOpcionesConteo();
+    setMensaje('msg-item', '✅ Responsable cambiado a ' + nuevo + '.', 'ok');
+  });
+}
+
+function descartarConteo() {
+  var c = estado.conteo;
+  if (!c) return;
+  cerrarOpcionesConteo();
+  var n = (c.items || []).length;
+  confirmar('Descartar conteo',
+    'Se descartará el conteo de ' + c.responsable + (n === 1 ? ' con su ítem' : (n ? ' con sus ' + n + ' ítems' : '')) +
+    '. No se generará PDF ni se enviará correo.\n\nPodrás empezar un conteo nuevo. ¿Descartarlo?',
+    function () {
+      var id = c.idConteo;
+      encolar('cancelarConteo', [estado.pin, id], 'Descartar conteo de ' + c.responsable).then(function () {
+        estado.conteo = null;
+        estado.responsableSel = '';
+        guardarCache();
+        renderResponsables();
+        $('inv-conteo').style.display = 'none';
+        $('inv-resumen').style.display = 'none';
+        $('inv-inicio').style.display = 'block';
+        setMensaje('msg-inicio-conteo', 'Conteo descartado. Elige el responsable para empezar uno nuevo.', 'ok');
+      });
+    });
+}
+
 function pedirCierreConteo() {
   var items = estado.conteo.items || [];
   var resumen = 'Responsable: ' + estado.conteo.responsable +
@@ -912,7 +972,8 @@ async function alResultadoCola(op, r) {
   if (r && r.ok === false) {
     var silencioso =
       (/No se encontró el ítem/.test(msg) && (fn === 'eliminarItemConteo' || fn === 'actualizarItemConteo')) ||
-      (fn === 'cerrarConteo' && /ya no está abierto/.test(msg));
+      (fn === 'cerrarConteo' && /ya no está abierto/.test(msg)) ||
+      ((fn === 'cancelarConteo' || fn === 'cambiarResponsableConteo') && /ya no está abierto/.test(msg));
     if (fn === 'cerrarConteo' && silencioso && estado.ultimoCierre && estado.ultimoCierre.idConteo === op.args[1]) {
       mostrarResumenCierre({ yaCerrado: true });
     }

@@ -145,7 +145,8 @@
       <!-- Conteo en curso -->
       <div id="inv-conteo" style="display:none;">
         <div class="banner-conteo">
-          📦 Conteo en curso · <b id="conteo-responsable"></b> · desde <span id="conteo-inicio"></span>
+          <span class="banner-texto">📦 Conteo en curso · <b id="conteo-responsable"></b> · desde <span id="conteo-inicio"></span></span>
+          <button id="btn-opciones-conteo" class="btn-banner">↩ Cambiar o cancelar</button>
         </div>
 
         <div class="paso">
@@ -196,6 +197,17 @@
       </div>
 
     </section>
+  </div>
+
+  <!-- MODAL OPCIONES DEL CONTEO (cambiar responsable o descartar) -->
+  <div id="modal-opciones-conteo" class="modal">
+    <div class="modal-card">
+      <h3>Corregir el conteo</h3>
+      <p class="nota">Responsable actual: <b id="opc-actual"></b>. Toca otro nombre para cambiarlo; los ítems ya registrados se mantienen.</p>
+      <div id="opc-grilla" class="grilla"></div>
+      <button id="opc-descartar" class="btn btn-peligro" style="width:100%;margin-top:14px;">🗑 Descartar este conteo y empezar de nuevo</button>
+      <button id="opc-cerrar" class="btn btn-secundario" style="width:100%;margin-top:10px;min-height:44px;font-size:0.95rem;">Volver</button>
+    </div>
   </div>
 
   <!-- MODAL ENVÍOS PENDIENTES (cola sin conexión) -->
