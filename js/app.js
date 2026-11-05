@@ -883,12 +883,12 @@ function descartarConteo() {
   if (!c) return;
   cerrarOpcionesConteo();
   var n = (c.items || []).length;
-  confirmar('Descartar conteo',
-    'Se descartará el conteo de ' + c.responsable + (n === 1 ? ' con su ítem' : (n ? ' con sus ' + n + ' ítems' : '')) +
-    '. No se generará PDF ni se enviará correo.\n\nPodrás empezar un conteo nuevo. ¿Descartarlo?',
+  confirmar('Eliminar conteo',
+    'Se eliminará por completo el conteo de ' + c.responsable + (n === 1 ? ' y su ítem' : (n ? ' y sus ' + n + ' ítems' : '')) +
+    '. No quedará ningún registro y no se enviará PDF ni correo.\n\nPodrás empezar un conteo nuevo. ¿Eliminarlo?',
     function () {
       var id = c.idConteo;
-      encolar('cancelarConteo', [estado.pin, id], 'Descartar conteo de ' + c.responsable).then(function () {
+      encolar('cancelarConteo', [estado.pin, id], 'Eliminar conteo de ' + c.responsable).then(function () {
         estado.conteo = null;
         estado.responsableSel = '';
         guardarCache();
@@ -896,7 +896,7 @@ function descartarConteo() {
         $('inv-conteo').style.display = 'none';
         $('inv-resumen').style.display = 'none';
         $('inv-inicio').style.display = 'block';
-        setMensaje('msg-inicio-conteo', 'Conteo descartado. Elige el responsable para empezar uno nuevo.', 'ok');
+        setMensaje('msg-inicio-conteo', 'Conteo eliminado. Elige el responsable para empezar uno nuevo.', 'ok');
       });
     });
 }
